@@ -110,12 +110,13 @@ public class Chunk {
      */
     public static class FollowHeader extends Chunk {
         public String title;
-        public int currentStage; // 1 based
+        public int currentStage; 
         public int numberWaypoints;
         
         public FollowHeader(String title, int currentStage, int numberWaypoints) {
             this.title = title;
             this.currentStage = currentStage;
+	    this.numberWaypoints = numberWaypoints;
         }
         public String toString() {
             return String.format("%1$s  %2$d/%3$d%n",title, currentStage, numberWaypoints);
@@ -188,25 +189,24 @@ public class Chunk {
     public static class CreateHeader extends Chunk {
         public String title;
         public int numberLegs;
-        public int numberPositions;
+        public int numberWaypoints;
         
-        public CreateHeader(String title, int numberLegs, int numberPositions) {
+        public CreateHeader(String title, int numberLegs, int numberWaypoints) {
             this.title = title;
             this.numberLegs = numberLegs;
-            this.numberPositions = numberPositions;
+            this.numberWaypoints = numberWaypoints;
         }
         public String toString() {
-            return String.format("New tour: %1$s. last leg#: %2$d  last waypoint#: %2$d%n", 
-                    title, numberLegs, numberPositions);
+            return String.format("New tour: %1$s. #legs: %2$d  #waypoints: %3$d%n", 
+                    title, numberLegs, numberWaypoints);
         }
         public boolean equals(Object o) {
             if (!(o instanceof CreateHeader)) return false;
             CreateHeader oCH = (CreateHeader) o;
             return title.equals(oCH.title) 
                     && numberLegs == oCH.numberLegs
-                    && numberPositions == oCH.numberPositions;
+                    && numberWaypoints == oCH.numberWaypoints;
         }
 
     }
-   
 }
