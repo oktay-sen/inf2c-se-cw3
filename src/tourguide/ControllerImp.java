@@ -4,6 +4,7 @@
 package tourguide;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -14,13 +15,22 @@ public class ControllerImp implements Controller {
     private static Logger logger = Logger.getLogger("tourguide");
     private static final String LS = System.lineSeparator();
 
+    private enum MODE {CREATE, BROWSE}
+
+    private MODE currentMode;
+
+    private List<Tour> allTours = new ArrayList<>();
+
+
+    private Tour currentTour;
+
     private String startBanner(String messageName) {
         return  LS 
                 + "-------------------------------------------------------------" + LS
                 + "MESSAGE: " + messageName + LS
                 + "-------------------------------------------------------------";
     }
-    
+
     public ControllerImp(double waypointRadius, double waypointSeparation) {
     }
 
@@ -30,29 +40,40 @@ public class ControllerImp implements Controller {
 
     // Some examples are shown below of use of logger calls.  The rest of the methods below that correspond 
     // to input messages could do with similar calls.
-    
+
     @Override
     public Status startNewTour(String id, String title, Annotation annotation) {
         logger.fine(startBanner("startNewTour"));
-        return new Status.Error("unimplemented");
+        currentTour = new Tour();
+        currentTour.id = id;
+        currentTour.title = title;
+        currentTour.annotation = annotation;
+        currentTour.numberLegs = 0;
+        currentTour.numberWaypoints = 0;
+        currentMode = MODE.CREATE;
+        return Status.OK;
     }
 
     @Override
     public Status addWaypoint(Annotation annotation) {
         logger.fine(startBanner("addWaypoint"));
-        return new Status.Error("unimplemented");
+        currentTour.numberWaypoints++;
+        return Status.OK;
     }
 
     @Override
     public Status addLeg(Annotation annotation) {
         logger.fine(startBanner("addLeg"));
-        return new Status.Error("unimplemented");
+        currentTour.numberLegs++;
+        return Status.OK;
     }
 
     @Override
     public Status endNewTour() {
         logger.fine(startBanner("endNewTour"));
-        return new Status.Error("unimplemented");
+        currentMode = MODE.BROWSE;
+        allTours.add(currentTour);
+        return Status.OK;
     }
 
     //--------------------------
@@ -66,7 +87,8 @@ public class ControllerImp implements Controller {
   
     @Override
     public Status showToursOverview() {
-        return new Status.Error("unimplemented");
+        currentMode = MODE.BROWSE;
+        return Status.OK;
     }
 
     //--------------------------
@@ -92,7 +114,17 @@ public class ControllerImp implements Controller {
 
     @Override
     public List<Chunk> getOutput() {
-        return new ArrayList<Chunk>();
+        List<Chunk> output = new ArrayList<>();
+        if (currentMode == MODE.CREATE) {
+            output.add(new Chunk.CreateHeader(currentTour.title,currentTour.numberLegs,currentTour.numberWaypoints));
+        } else if (currentMode == MODE.BROWSE){
+            Chunk.BrowseOverview overview = new Chunk.BrowseOverview();
+            for (Tour tour : allTours) {
+                overview.addIdAndTitle(tour.id, tour.title);
+            }
+            output.add(overview);
+        }
+        return output;
     }
 
 

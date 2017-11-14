@@ -3,7 +3,7 @@
  */
 package tourguide;
 
-import java.util.List;
+import java.util.*;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -228,5 +228,80 @@ public class ControllerTest {
         checkOutput(1, 0, overview);
     
     }
+
+    /**
+     * Tests if controller.showToursOverview works correctly when there is no tours in the system.
+     */
+    @Test
+    public void getOutputBrowseInit() {
+        //logger.info(makeBanner("getOutputBrowseInit"));
+
+        Status status = controller.showToursOverview();
+        checkStatus(status);
+        Chunk.BrowseOverview expected = new Chunk.BrowseOverview();
+        expected.overviewLines = new ArrayList<>();
+        checkOutput(1,0, expected);
+    }
+
+    /**
+     * Tests if controller.showToursOverview works correctly when there is 1 tour in the system.
+     */
+    @Test
+    public void getOutputBrowseOneTour() {
+        controller.startNewTour("01","tour1", Annotation.DEFAULT);
+        controller.addLeg(Annotation.DEFAULT);
+        controller.addWaypoint(Annotation.DEFAULT);
+        controller.endNewTour();
+
+        Status status = controller.showToursOverview();
+        Assert.assertEquals(Status.OK, status);
+        List<Chunk> output = controller.getOutput();
+
+
+        Chunk.BrowseOverview myOverview = new Chunk.BrowseOverview();
+        myOverview.addIdAndTitle("01","tour1");
+
+        Assert.assertEquals(1, output.size());
+        Assert.assertEquals(myOverview, output.get(0));
+    }
+
+    /**
+     * Tests if a simple tour can be created in the controller.
+     */
+    @Test
+    public void createSimpleTour() {
+        Status startStatus = controller.startNewTour("01","tour1",Annotation.DEFAULT);
+        checkStatus(startStatus);
+        List<Chunk> startOutput =  controller.getOutput();
+        Chunk.CreateHeader expected = new Chunk.CreateHeader("tour1",0,0);
+        Assert.assertEquals(1, startOutput.size());
+        Assert.assertEquals(expected, startOutput.get(0));
+
+
+        Status legStatus = controller.addLeg(Annotation.DEFAULT);
+        checkStatus(legStatus);
+        List<Chunk> legOutput = controller.getOutput();
+        Assert.assertEquals(1,legOutput.size());
+        Chunk.CreateHeader legExpected = new Chunk.CreateHeader("tour1",1,0);
+        Assert.assertEquals(legExpected,legOutput.get(0));
+
+        Status waypointStatus = controller.addWaypoint(Annotation.DEFAULT);
+        checkStatus(waypointStatus);
+        List<Chunk> waypointOutput = controller.getOutput();
+        Assert.assertEquals(1,waypointOutput.size());
+        Chunk.CreateHeader waypointExpected = new Chunk.CreateHeader("tour1",1,1);
+        Assert.assertEquals(waypointExpected,waypointOutput.get(0));
+
+        Status endStatus = controller.endNewTour();
+        checkStatus(endStatus);
+        List<Chunk> endOutput = controller.getOutput();
+
+        Chunk.BrowseOverview overview = (Chunk.BrowseOverview) endOutput.get(0);
+        Assert.assertEquals(1, overview.overviewLines.size());
+        Assert.assertEquals("01", overview.overviewLines.get(0).id);
+        Assert.assertEquals("tour1", overview.overviewLines.get(0).title);
+    }
+
+
     
 }

@@ -4,6 +4,10 @@ import java.util.List;
 
 public interface Controller {
 
+//    private List<Tour> tours;
+//    Tour currentTour;
+//    private int mode;
+
     /*
      * Create tour mode
      */
