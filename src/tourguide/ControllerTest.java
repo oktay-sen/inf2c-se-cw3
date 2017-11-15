@@ -302,6 +302,59 @@ public class ControllerTest {
         Assert.assertEquals("tour1", overview.overviewLines.get(0).title);
     }
 
+    @Test
+    public void browseTourDetails() {
+        controller.startNewTour("01","tour1", new Annotation("testing"));
+        controller.addLeg(Annotation.DEFAULT);
+        controller.addWaypoint(Annotation.DEFAULT);
+        controller.endNewTour();
+
+        controller.showToursOverview();
+        Status status = controller.showTourDetails("01");
+        checkStatus(status);
+        List<Chunk> output = controller.getOutput();
+
+        Chunk.BrowseDetails expected = new Chunk.BrowseDetails("01", "tour1", new Annotation("testing"));
+
+        checkOutput(1, 0, expected);
+        //TODO: Update this test with newer implementation.
+    }
+
+    @Test
+    public void createTourFail() {
+        Status status;
+        status = controller.addWaypoint(Annotation.DEFAULT);
+        checkStatusNotOK(status);
+        status = controller.addLeg(Annotation.DEFAULT);
+        checkStatusNotOK(status);
+        status = controller.endNewTour();
+        checkStatusNotOK(status);
+
+        controller.startNewTour("01", "tour1", Annotation.DEFAULT);
+        status = controller.endNewTour();
+        checkStatusNotOK(status);
+        controller.addWaypoint(Annotation.DEFAULT);
+        controller.addLeg(Annotation.DEFAULT);
+        status = controller.endNewTour();
+        checkStatusNotOK(status);
+        status = controller.addLeg(Annotation.DEFAULT);
+        checkStatusNotOK(status);
+        controller.addWaypoint(Annotation.DEFAULT);
+        controller.endNewTour();
+
+        controller.showToursOverview();
+        controller.showTourDetails("01");
+
+        status = controller.startNewTour("02", "tour2", Annotation.DEFAULT);
+        checkStatusNotOK(status);
+
+        //TODO: Check if it fails in follow tour.
+
+        //TODO: Check that close waypoints can't be added.
+    }
+
+    //TODO: Check failing conditions for tourdetails.
+    //TODO: Write tests for follow tour.
 
     
 }
