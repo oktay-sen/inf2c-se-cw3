@@ -270,36 +270,68 @@ public class ControllerTest {
      */
     @Test
     public void createSimpleTour() {
-        Status startStatus = controller.startNewTour("01","tour1",Annotation.DEFAULT);
-        checkStatus(startStatus);
-        List<Chunk> startOutput =  controller.getOutput();
-        Chunk.CreateHeader expected = new Chunk.CreateHeader("tour1",0,0);
-        Assert.assertEquals(1, startOutput.size());
-        Assert.assertEquals(expected, startOutput.get(0));
+        checkStatus(controller.startNewTour("01","tour1",Annotation.DEFAULT));
+        checkOutput(1,0,
+                new Chunk.CreateHeader("tour1",0,0)
+        );
 
+        checkStatus(controller.addLeg(Annotation.DEFAULT));
+        checkOutput(1,0,
+                new Chunk.CreateHeader("tour1",1,0)
+        );
 
-        Status legStatus = controller.addLeg(Annotation.DEFAULT);
-        checkStatus(legStatus);
-        List<Chunk> legOutput = controller.getOutput();
-        Assert.assertEquals(1,legOutput.size());
-        Chunk.CreateHeader legExpected = new Chunk.CreateHeader("tour1",1,0);
-        Assert.assertEquals(legExpected,legOutput.get(0));
+        controller.setLocation(0,0);
+        checkStatus(controller.addWaypoint(Annotation.DEFAULT));
+        checkOutput(1,0,
+                new Chunk.CreateHeader("tour1",1,1)
+        );
 
-        Status waypointStatus = controller.addWaypoint(Annotation.DEFAULT);
-        checkStatus(waypointStatus);
-        List<Chunk> waypointOutput = controller.getOutput();
-        Assert.assertEquals(1,waypointOutput.size());
-        Chunk.CreateHeader waypointExpected = new Chunk.CreateHeader("tour1",1,1);
-        Assert.assertEquals(waypointExpected,waypointOutput.get(0));
+        controller.setLocation(-WAYPOINT_SEPARATION,0);
+        checkStatus(controller.addWaypoint(Annotation.DEFAULT));
+        checkOutput(1,0,
+                new Chunk.CreateHeader("tour1",2,2)
+        );
 
-        Status endStatus = controller.endNewTour();
-        checkStatus(endStatus);
-        List<Chunk> endOutput = controller.getOutput();
+        controller.setLocation(0,0);
+        checkStatus(controller.addWaypoint(Annotation.DEFAULT));
+        checkOutput(1,0,
+                new Chunk.CreateHeader("tour1",3,3)
+        );
 
-        Chunk.BrowseOverview overview = (Chunk.BrowseOverview) endOutput.get(0);
-        Assert.assertEquals(1, overview.overviewLines.size());
-        Assert.assertEquals("01", overview.overviewLines.get(0).id);
-        Assert.assertEquals("tour1", overview.overviewLines.get(0).title);
+        controller.setLocation(WAYPOINT_SEPARATION,0);
+        checkStatus(controller.addWaypoint(Annotation.DEFAULT));
+        checkOutput(1,0,
+                new Chunk.CreateHeader("tour1",4,4)
+        );
+
+        controller.setLocation(0,0);
+        checkStatus(controller.addWaypoint(Annotation.DEFAULT));
+        checkOutput(1,0,
+                new Chunk.CreateHeader("tour1",5,5)
+        );
+
+        controller.setLocation(0,-WAYPOINT_SEPARATION);
+        checkStatus(controller.addWaypoint(Annotation.DEFAULT));
+        checkOutput(1,0,
+                new Chunk.CreateHeader("tour1",6,6)
+        );
+
+        controller.setLocation(0,0);
+        checkStatus(controller.addWaypoint(Annotation.DEFAULT));
+        checkOutput(1,0,
+                new Chunk.CreateHeader("tour1",7,7)
+        );
+
+        controller.setLocation(0,WAYPOINT_SEPARATION);
+        checkStatus(controller.addWaypoint(Annotation.DEFAULT));
+        checkOutput(1,0,
+                new Chunk.CreateHeader("tour1",8,8)
+        );
+
+        checkStatus(controller.endNewTour());
+        Chunk.BrowseOverview expected2 = new Chunk.BrowseOverview();
+        expected2.addIdAndTitle("01", "tour1");
+        checkOutput(1,0,expected2);
     }
 
     @Test
@@ -333,12 +365,27 @@ public class ControllerTest {
         controller.startNewTour("01", "tour1", Annotation.DEFAULT);
         status = controller.endNewTour();
         checkStatusNotOK(status);
+        controller.setLocation(0,0);
         controller.addWaypoint(Annotation.DEFAULT);
         controller.addLeg(Annotation.DEFAULT);
         status = controller.endNewTour();
         checkStatusNotOK(status);
         status = controller.addLeg(Annotation.DEFAULT);
         checkStatusNotOK(status);
+
+        controller.setLocation(-(WAYPOINT_SEPARATION*0.99),0);
+        status = controller.addWaypoint(Annotation.DEFAULT);
+        checkStatusNotOK(status);
+        controller.setLocation((WAYPOINT_SEPARATION*0.99),0);
+        status = controller.addWaypoint(Annotation.DEFAULT);
+        checkStatusNotOK(status);
+        controller.setLocation(0,-(WAYPOINT_SEPARATION*0.99));
+        status = controller.addWaypoint(Annotation.DEFAULT);
+        checkStatusNotOK(status);
+        controller.setLocation(0,(WAYPOINT_SEPARATION*0.99));
+        status = controller.addWaypoint(Annotation.DEFAULT);
+        checkStatusNotOK(status);
+        controller.setLocation(0,WAYPOINT_SEPARATION);
         controller.addWaypoint(Annotation.DEFAULT);
         controller.endNewTour();
 
@@ -349,12 +396,11 @@ public class ControllerTest {
         checkStatusNotOK(status);
 
         //TODO: Check if it fails in follow tour.
-
-        //TODO: Check that close waypoints can't be added.
     }
 
     //TODO: Check failing conditions for tourdetails.
     //TODO: Write tests for follow tour.
+
 
     
 }

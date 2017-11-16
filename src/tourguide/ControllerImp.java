@@ -26,6 +26,8 @@ public class ControllerImp implements Controller {
 
     private Tour currentTour;
 
+    private double waypointRadius, waypointSeparation;
+
     private String startBanner(String messageName) {
         return  LS 
                 + "-------------------------------------------------------------" + LS
@@ -34,6 +36,9 @@ public class ControllerImp implements Controller {
     }
 
     public ControllerImp(double waypointRadius, double waypointSeparation) {
+        currentMode = MODE.BROWSE;
+        this.waypointRadius = waypointRadius;
+        this.waypointSeparation = waypointSeparation;
     }
 
     //--------------------------
@@ -58,7 +63,16 @@ public class ControllerImp implements Controller {
 
         logger.fine(startBanner("addWaypoint"));
 
+        //Check if waypoint is too close.
+        if (currentTour.waypoints.size() > 0) {
+            Waypoint last = currentTour.waypoints.get(currentTour.waypoints.size()-1);
+            Displacement d = new Displacement(last.east - currentEast, last.north - currentNorth);
+            if (d.distance() < waypointSeparation) return new Status.Error("Waypoint too close to the last.");
+        }
+
+        //Add new waypoint
         currentTour.waypoints.add(new Waypoint(currentEast, currentNorth, annotation));
+        //If waypoint doesn't have annotation, add default annotation.
         if (currentTour.legAnnotations.size() < currentTour.waypoints.size())
             currentTour.legAnnotations.add(Annotation.DEFAULT);
         return Status.OK;
