@@ -265,6 +265,12 @@ public class ControllerTest {
         Assert.assertEquals(myOverview, output.get(0));
     }
 
+    @Test
+    public void browseTourFail() {
+        controller.startNewTour("01", "tour1", Annotation.DEFAULT);
+        checkStatusNotOK(controller.showToursOverview());
+    }
+
     /**
      * Tests if a simple tour can be created in the controller.
      */
@@ -337,69 +343,145 @@ public class ControllerTest {
     @Test
     public void browseTourDetails() {
         controller.startNewTour("01","tour1", new Annotation("testing"));
-        controller.addLeg(Annotation.DEFAULT);
         controller.addWaypoint(Annotation.DEFAULT);
         controller.endNewTour();
 
         controller.showToursOverview();
-        Status status = controller.showTourDetails("01");
-        checkStatus(status);
-        List<Chunk> output = controller.getOutput();
+        checkStatus(controller.showTourDetails("01"));
 
-        Chunk.BrowseDetails expected = new Chunk.BrowseDetails("01", "tour1", new Annotation("testing"));
+        checkOutput(1, 0,
+                new Chunk.BrowseDetails("01", "tour1", new Annotation("testing"))
+        );
+    }
 
-        checkOutput(1, 0, expected);
-        //TODO: Update this test with newer implementation.
+    @Test
+    public void browseTourDetailsFail() {
+        checkStatusNotOK(controller.showTourDetails("01"));
+        checkStatusNotOK(controller.showTourDetails(null));
+        controller.startNewTour("01", "tour1", Annotation.DEFAULT);
+        controller.addWaypoint(Annotation.DEFAULT);
+        controller.endNewTour();
+        controller.startNewTour("02", "tour2", Annotation.DEFAULT);
+        checkStatusNotOK(controller.showTourDetails("01"));
     }
 
     @Test
     public void createTourFail() {
-        Status status;
-        status = controller.addWaypoint(Annotation.DEFAULT);
-        checkStatusNotOK(status);
-        status = controller.addLeg(Annotation.DEFAULT);
-        checkStatusNotOK(status);
-        status = controller.endNewTour();
-        checkStatusNotOK(status);
-
         controller.startNewTour("01", "tour1", Annotation.DEFAULT);
-        status = controller.endNewTour();
-        checkStatusNotOK(status);
+        checkStatusNotOK(controller.endNewTour());
         controller.setLocation(0,0);
         controller.addWaypoint(Annotation.DEFAULT);
         controller.addLeg(Annotation.DEFAULT);
-        status = controller.endNewTour();
-        checkStatusNotOK(status);
-        status = controller.addLeg(Annotation.DEFAULT);
-        checkStatusNotOK(status);
+        checkStatusNotOK(controller.endNewTour());
+        checkStatusNotOK(controller.addLeg(Annotation.DEFAULT));
 
         controller.setLocation(-(WAYPOINT_SEPARATION*0.99),0);
-        status = controller.addWaypoint(Annotation.DEFAULT);
-        checkStatusNotOK(status);
+        checkStatusNotOK(controller.addWaypoint(Annotation.DEFAULT));
         controller.setLocation((WAYPOINT_SEPARATION*0.99),0);
-        status = controller.addWaypoint(Annotation.DEFAULT);
-        checkStatusNotOK(status);
+        checkStatusNotOK(controller.addWaypoint(Annotation.DEFAULT));
         controller.setLocation(0,-(WAYPOINT_SEPARATION*0.99));
-        status = controller.addWaypoint(Annotation.DEFAULT);
-        checkStatusNotOK(status);
+        checkStatusNotOK(controller.addWaypoint(Annotation.DEFAULT));
         controller.setLocation(0,(WAYPOINT_SEPARATION*0.99));
-        status = controller.addWaypoint(Annotation.DEFAULT);
-        checkStatusNotOK(status);
+        checkStatusNotOK(controller.addWaypoint(Annotation.DEFAULT));
         controller.setLocation(0,WAYPOINT_SEPARATION);
         controller.addWaypoint(Annotation.DEFAULT);
         controller.endNewTour();
 
         controller.showToursOverview();
+        checkStatusNotOK(controller.addWaypoint(Annotation.DEFAULT));
+        checkStatusNotOK(controller.addLeg(Annotation.DEFAULT));
+        checkStatusNotOK(controller.endNewTour());
         controller.showTourDetails("01");
-
-        status = controller.startNewTour("02", "tour2", Annotation.DEFAULT);
-        checkStatusNotOK(status);
-
-        //TODO: Check if it fails in follow tour.
+        checkStatusNotOK(controller.startNewTour("02", "tour2", Annotation.DEFAULT));
+        checkStatusNotOK(controller.addWaypoint(Annotation.DEFAULT));
+        checkStatusNotOK(controller.addLeg(Annotation.DEFAULT));
+        checkStatusNotOK(controller.endNewTour());
+        controller.followTour("01");
+        checkStatusNotOK(controller.startNewTour("02", "tour2", Annotation.DEFAULT));
+        checkStatusNotOK(controller.addWaypoint(Annotation.DEFAULT));
+        checkStatusNotOK(controller.addLeg(Annotation.DEFAULT));
+        checkStatusNotOK(controller.endNewTour());
     }
 
-    //TODO: Check failing conditions for tourdetails.
-    //TODO: Write tests for follow tour.
+    @Test
+    public void followTour() {
+        controller.startNewTour("01", "tour1", new Annotation("tour_annotation"));
+        for (int i=0; i < 50; i++) {
+            controller.setLocation(0,i * WAYPOINT_SEPARATION);
+            controller.addLeg(new Annotation("leg"+i));
+            controller.addWaypoint(new Annotation("way"+i));
+        }
+        controller.endNewTour();
+
+        controller.showToursOverview();
+        controller.showTourDetails("01");
+        checkStatus(controller.followTour("01"));
+
+        for (int i=0; i < 51; i++) {
+            controller.setLocation(0, (i-1)*WAYPOINT_SEPARATION);
+            int numExpected = i > 0 ? i < 50 ? 4 : 2 : 3;
+            checkOutput(numExpected, 0,
+                    new Chunk.FollowHeader("tour1", i, 50)
+            );
+            if (i < 50) {
+                checkOutput(numExpected, i>0?2:1,
+                        new Chunk.FollowLeg(new Annotation("leg"+i))
+                );
+
+                Displacement d = new Displacement(0, WAYPOINT_SEPARATION);
+                checkOutput(numExpected,numExpected-1,
+                        new Chunk.FollowBearing(d.bearing(), d.distance())
+                );
+            }
+            if (i > 0) {
+                checkOutput(numExpected, 1,
+                        new Chunk.FollowWaypoint(new Annotation("way"+(i-1)))
+                );
+            }
+
+            if (i > 0 && i < 50) {
+                //User leaves waypoint
+                controller.setLocation(WAYPOINT_RADIUS+1, (i-1)*WAYPOINT_SEPARATION);
+                checkOutput(3, 0,
+                        new Chunk.FollowHeader("tour1", i, 50)
+                );
+                checkOutput(3, 1,
+                        new Chunk.FollowLeg(new Annotation("leg"+i))
+                );
+                Displacement d = new Displacement(-(WAYPOINT_RADIUS+1), WAYPOINT_SEPARATION);
+                checkOutput(3,2,
+                        new Chunk.FollowBearing(d.bearing(), d.distance())
+                );
+            }
+        }
+        checkStatus(controller.endSelectedTour());
+        Chunk.BrowseOverview expected = new Chunk.BrowseOverview();
+        expected.addIdAndTitle("01", "tour1");
+        checkOutput(1,0,expected);
+
+        checkStatus(controller.followTour("01"));
+        checkStatus(controller.endSelectedTour());
+    }
+
+    @Test
+    public void followTourFail() {
+        controller.startNewTour("01", "title1", Annotation.DEFAULT);
+        controller.addWaypoint(Annotation.DEFAULT);
+        checkStatusNotOK(controller.followTour("01"));
+        checkStatusNotOK(controller.endSelectedTour());
+        controller.endNewTour();
+
+        controller.showToursOverview();
+        checkStatusNotOK(controller.followTour("02"));
+        checkStatusNotOK(controller.followTour(null));
+        checkStatusNotOK(controller.endSelectedTour());
+        controller.showTourDetails("01");
+        checkStatusNotOK(controller.followTour("02"));
+        checkStatusNotOK(controller.followTour(null));
+        checkStatusNotOK(controller.endSelectedTour());
+        controller.followTour("01");
+        checkStatusNotOK(controller.followTour("01"));
+    }
 
 
     

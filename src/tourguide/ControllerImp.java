@@ -18,13 +18,14 @@ public class ControllerImp implements Controller {
     private double currentEast;
     private double currentNorth;
 
-    private enum MODE {CREATE, BROWSE, DETAILS}
+    private enum MODE {CREATE, BROWSE, DETAILS, FOLLOW}
 
     private MODE currentMode;
 
     private HashMap<String, Tour> allTours = new HashMap<>();
 
     private Tour currentTour;
+    private int currentStage;
 
     private double waypointRadius, waypointSeparation;
 
@@ -110,6 +111,9 @@ public class ControllerImp implements Controller {
 
     @Override
     public Status showTourDetails(String tourID) {
+        if (currentMode != MODE.BROWSE) return new Status.Error("Incorrect state");
+        if (!allTours.containsKey(tourID)) return new Status.Error("Tour " + tourID + " not found.");
+
         currentTour = allTours.get(tourID);
         currentMode = MODE.DETAILS;
         return Status.OK;
@@ -117,6 +121,7 @@ public class ControllerImp implements Controller {
   
     @Override
     public Status showToursOverview() {
+        if (currentMode == MODE.CREATE) return new Status.Error("Can't browse while creating new tour.");
         currentMode = MODE.BROWSE;
         return Status.OK;
     }
@@ -127,12 +132,19 @@ public class ControllerImp implements Controller {
     
     @Override
     public Status followTour(String id) {
-        return new Status.Error("unimplemented");
+        if (currentMode != MODE.DETAILS && currentMode != MODE.BROWSE) return new Status.Error("Incorrect state");
+        if (!allTours.containsKey(id)) return new Status.Error("Tour " + id + " not found.");
+        currentTour = allTours.get(id);
+        currentMode = MODE.FOLLOW;
+        currentStage = 0;
+        return Status.OK;
     }
 
     @Override
     public Status endSelectedTour() {
-        return new Status.Error("unimplemented");
+        if (currentMode != MODE.FOLLOW) return new Status.Error("Incorrect state");
+        currentMode = MODE.BROWSE;
+        return Status.OK;
     }
 
     //--------------------------
@@ -142,6 +154,17 @@ public class ControllerImp implements Controller {
     public void setLocation(double easting, double northing) {
         currentEast = easting;
         currentNorth = northing;
+
+        if (currentMode == MODE.FOLLOW
+                && currentStage < currentTour.waypoints.size()) {
+            Displacement next = new Displacement(
+                    currentTour.waypoints.get(currentStage).east - currentEast,
+                    currentTour.waypoints.get(currentStage).north - currentNorth
+            );
+            if (next.distance() <= waypointRadius) {
+                currentStage++;
+            }
+        }
     }
 
     @Override
@@ -164,6 +187,35 @@ public class ControllerImp implements Controller {
                 Chunk.BrowseDetails details = new Chunk.BrowseDetails(currentTour.id, currentTour.title, currentTour.annotation);
                 output.add(details);
                 break;
+            }
+            case FOLLOW: {
+                output.add(
+                        new Chunk.FollowHeader(currentTour.title, currentStage, currentTour.waypoints.size())
+                );
+                if (currentStage > 0) {
+                    Displacement current = new Displacement(
+                            currentTour.waypoints.get(currentStage-1).east - currentEast,
+                            currentTour.waypoints.get(currentStage-1).north - currentNorth
+                    );
+                    if (current.distance() <= waypointRadius) {
+                        output.add(
+                                new Chunk.FollowWaypoint(currentTour.waypoints.get(currentStage-1).annotation)
+                        );
+                    }
+                }
+                if (currentStage < currentTour.waypoints.size()) {
+                    output.add(
+                            new Chunk.FollowLeg(currentTour.legAnnotations.get(currentStage))
+                    );
+                    Displacement next = new Displacement(
+                            currentTour.waypoints.get(currentStage).east - currentEast,
+                            currentTour.waypoints.get(currentStage).north - currentNorth
+                    );
+                    output.add(
+                            new Chunk.FollowBearing(next.bearing(), next.distance())
+                    );
+                }
+
             }
         }
         return output;
