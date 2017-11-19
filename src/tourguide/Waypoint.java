@@ -9,4 +9,13 @@ public class Waypoint {
         this.north = north;
         this.annotation = annotation;
     }
+
+    @Override
+    public String toString() {
+        return "Waypoint{" +
+                "east=" + east +
+                ", north=" + north +
+                ", annotation=" + annotation +
+                '}';
+    }
 }

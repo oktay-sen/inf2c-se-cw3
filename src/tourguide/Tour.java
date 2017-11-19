@@ -16,4 +16,15 @@ public class Tour {
         this.title = title;
         this.annotation = annotation;
     }
+
+    @Override
+    public String toString() {
+        return "Tour{" +
+                "id='" + id + '\'' +
+                ", title='" + title + '\'' +
+                ", annotation=" + annotation +
+                ", legAnnotations=" + legAnnotations +
+                ", waypoints=" + waypoints +
+                '}';
+    }
 }

@@ -36,6 +36,7 @@ public class ControllerImp implements Controller {
     }
 
     public ControllerImp(double waypointRadius, double waypointSeparation) {
+        //logger.fine("CONTROLLER CREATED. Mode:" + MODE.BROWSE + ", Waypoint Radius:" + waypointRadius + ", Waypoint Separation: " + waypointSeparation);
         currentMode = MODE.BROWSE;
         this.waypointRadius = waypointRadius;
         this.waypointSeparation = waypointSeparation;
@@ -50,56 +51,96 @@ public class ControllerImp implements Controller {
 
     @Override
     public Status startNewTour(String id, String title, Annotation annotation) {
-        if (currentMode != MODE.BROWSE) return new Status.Error("Incorrect state");
-        logger.fine(startBanner("startNewTour"));
+        logger.entering("tourguide.ControllerImp", "startNewTour", new Object[]{id, title, annotation});
+        if (currentMode != MODE.BROWSE) {
+            logger.fine("ERROR: Incorrect mode, expected " + MODE.BROWSE + ", got " + currentMode + ".");
+            return new Status.Error("ERROR: Incorrect mode, expected " + MODE.BROWSE + ", got " + currentMode + ".");
+        }
+        //logger.fine(startBanner("startNewTour"));
         currentTour = new Tour(id, title, annotation);
+        logger.info("TOUR CREATED: " + currentTour);
+        logger.info("MODE CHANGED: " + currentMode + " -> " + MODE.CREATE);
         currentMode = MODE.CREATE;
         return Status.OK;
     }
 
     @Override
     public Status addWaypoint(Annotation annotation) {
-        if (currentMode != MODE.CREATE) return new Status.Error("Incorrect state");
-
-        logger.fine(startBanner("addWaypoint"));
+        logger.entering("tourguide.ControllerImp", "addWaypoint", annotation);
+        if (currentMode != MODE.CREATE) {
+            logger.fine("ERROR: Incorrect mode, expected " + MODE.CREATE + ", got " + currentMode + ".");
+            return new Status.Error("ERROR: Incorrect mode, expected " + MODE.CREATE + ", got " + currentMode + ".");
+        }
+        //logger.fine(startBanner("addWaypoint"));
 
         //Check if waypoint is too close.
         if (currentTour.waypoints.size() > 0) {
             Waypoint last = currentTour.waypoints.get(currentTour.waypoints.size()-1);
             Displacement d = new Displacement(last.east - currentEast, last.north - currentNorth);
-            if (d.distance() < waypointSeparation) return new Status.Error("Waypoint too close to the last.");
+            if (d.distance() < waypointSeparation) {
+                Waypoint cur = new Waypoint(currentEast, currentNorth, annotation);
+                logger.fine("ERROR: Waypoint ("+cur+") too close to the last ("+last+").");
+                return new Status.Error("ERROR: Waypoint ("+cur+") too close to the last ("+last+").");
+            }
         }
 
         //Add new waypoint
         currentTour.waypoints.add(new Waypoint(currentEast, currentNorth, annotation));
+        logger.info(currentTour.waypoints.get(currentTour.waypoints.size()-1) + " added to tour " + currentTour.id);
         //If waypoint doesn't have annotation, add default annotation.
-        if (currentTour.legAnnotations.size() < currentTour.waypoints.size())
+        if (currentTour.legAnnotations.size() < currentTour.waypoints.size()) {
+            logger.info("Leg annotation " + Annotation.DEFAULT + " added to tour " + currentTour.id);
             currentTour.legAnnotations.add(Annotation.DEFAULT);
+        }
         return Status.OK;
     }
 
     @Override
     public Status addLeg(Annotation annotation) {
-        if (currentMode != MODE.CREATE) return new Status.Error("Incorrect state");
+        logger.entering("tourguide.ControllerImp", "addLeg", annotation);
+        if (currentMode != MODE.CREATE) {
+            logger.fine("ERROR: Incorrect mode, expected " + MODE.CREATE + ", got " + currentMode + ".");
+            return new Status.Error("ERROR: Incorrect mode, expected " + MODE.CREATE + ", got " + currentMode + ".");
+        }
 
-        logger.fine(startBanner("addLeg"));
+        //logger.fine(startBanner("addLeg"));
 
-        if (currentTour.legAnnotations.size() > currentTour.waypoints.size())
-            return new Status.Error("Too many legs.");
+        if (currentTour.legAnnotations.size() > currentTour.waypoints.size()) {
+            logger.fine("ERROR: Too many leg annotations in tour "+ currentTour.id +".");
+            return new Status.Error("ERROR: Too many leg annotations in tour "+ currentTour.id +".");
+        }
+        logger.info("Leg annotation " + annotation + " added to tour " + currentTour.id);
         currentTour.legAnnotations.add(annotation);
         return Status.OK;
     }
 
     @Override
     public Status endNewTour() {
-        if (currentMode != MODE.CREATE) return new Status.Error("Incorrect state");
-        if (currentTour.waypoints.size() < 1)
-            return new Status.Error("Can't create tour without waypoints.");
-        if (currentTour.legAnnotations.size() != currentTour.waypoints.size())
-            return new Status.Error("Number of legs must be same as number of waypoints.");
+        logger.entering("tourguide.ControllerImp", "endNewTour");
+        if (currentMode != MODE.CREATE) {
+            logger.fine("ERROR: Incorrect mode, expected " + MODE.CREATE + ", got " + currentMode + ".");
+            return new Status.Error("ERROR: Incorrect mode, expected " + MODE.CREATE + ", got " + currentMode + ".");
+        }
+        if (currentTour.waypoints.size() < 1) {
+            logger.fine("ERROR: Can't create tour without waypoints.");
+            return new Status.Error("ERROR: Can't create tour without waypoints.");
+        }
+        if (currentTour.legAnnotations.size() != currentTour.waypoints.size()) {
+            logger.fine(
+                    "ERROR: Number of legs must be same as number of waypoints." +
+                            "Legs: " + currentTour.legAnnotations.size() + ", Waypoints: " + currentTour.legAnnotations.size()
+            );
+            return new Status.Error(
+                    "ERROR: Number of legs must be same as number of waypoints." +
+                            "Legs: " + currentTour.legAnnotations.size() + ", Waypoints: " + currentTour.legAnnotations.size()
+            );
+        }
+        //logger.fine(startBanner("endNewTour"));
 
-        logger.fine(startBanner("endNewTour"));
+        logger.info("MODE CHANGED: " + currentMode + " -> " + MODE.BROWSE);
         currentMode = MODE.BROWSE;
+
+        logger.info("TOUR ADDED: " + currentTour);
         allTours.put(currentTour.id, currentTour);
         return Status.OK;
     }
@@ -110,17 +151,33 @@ public class ControllerImp implements Controller {
 
     @Override
     public Status showTourDetails(String tourID) {
-        if (currentMode != MODE.BROWSE) return new Status.Error("Incorrect state");
-        if (!allTours.containsKey(tourID)) return new Status.Error("Tour " + tourID + " not found.");
+        logger.entering("tourguide.ControllerImp", "showTourDetails", tourID);
+        if (currentMode != MODE.BROWSE) {
+            logger.fine("ERROR: Incorrect mode, expected " + MODE.BROWSE + ", got " + currentMode + ".");
+            return new Status.Error("ERROR: Incorrect mode, expected " + MODE.BROWSE + ", got " + currentMode + ".");
+        }
+        if (!allTours.containsKey(tourID)) {
+            logger.fine("ERROR: Tour " + tourID + " not found.");
+            return new Status.Error("ERROR: Tour " + tourID + " not found.");
+        }
+
+        logger.info("MODE CHANGED: " + currentMode + " -> " + MODE.DETAILS);
+        currentMode = MODE.DETAILS;
 
         currentTour = allTours.get(tourID);
-        currentMode = MODE.DETAILS;
+        logger.info("VIEWING TOUR: " + currentTour);
         return Status.OK;
     }
   
     @Override
     public Status showToursOverview() {
-        if (currentMode == MODE.CREATE) return new Status.Error("Can't browse while creating new tour.");
+        logger.entering("tourguide.ControllerImp", "showTourDetails");
+        if (currentMode == MODE.CREATE) {
+            logger.fine("ERROR: Incorrect mode, can't browse while creating new tour.");
+            return new Status.Error("ERROR: Incorrect mode, can't browse while creating new tour.");
+        }
+
+        logger.info("MODE CHANGED: " + currentMode + " -> " + MODE.BROWSE);
         currentMode = MODE.BROWSE;
         return Status.OK;
     }
@@ -131,17 +188,35 @@ public class ControllerImp implements Controller {
     
     @Override
     public Status followTour(String id) {
-        if (currentMode != MODE.DETAILS && currentMode != MODE.BROWSE) return new Status.Error("Incorrect state");
-        if (!allTours.containsKey(id)) return new Status.Error("Tour " + id + " not found.");
-        currentTour = allTours.get(id);
+        logger.entering("tourguide.ControllerImp", "followTour", id);
+        if (currentMode != MODE.DETAILS && currentMode != MODE.BROWSE) {
+            logger.fine("ERROR: Incorrect mode, expected " + MODE.BROWSE + " or " + MODE.DETAILS + ", got " + currentMode + ".");
+            return new Status.Error("ERROR: Incorrect mode, expected " + MODE.BROWSE + " or " + MODE.DETAILS + ", got " + currentMode + ".");
+        }
+        if (!allTours.containsKey(id)) {
+            logger.fine("ERROR: Tour " + id + " not found.");
+            return new Status.Error("ERROR: Tour " + id + " not found.");
+        }
+        logger.info("MODE CHANGED: " + currentMode + " -> " + MODE.FOLLOW);
         currentMode = MODE.FOLLOW;
+
+        currentTour = allTours.get(id);
+        logger.info("FOLLOWING TOUR: " + currentTour);
+        
         currentStage = 0;
+        logger.info("CURRENT STAGE: " + currentStage);
         return Status.OK;
     }
 
     @Override
     public Status endSelectedTour() {
-        if (currentMode != MODE.FOLLOW) return new Status.Error("Incorrect state");
+        logger.entering("tourguide.ControllerImp", "endSelectedTour");
+        if (currentMode != MODE.FOLLOW) {
+            logger.fine("ERROR: Incorrect mode, expected " + MODE.FOLLOW + ", got " + currentMode + ".");
+            return new Status.Error("ERROR: Incorrect mode, expected " + MODE.FOLLOW + ", got " + currentMode + ".");
+        }
+        
+        logger.info("MODE CHANGED: " + currentMode + " -> " + MODE.BROWSE);
         currentMode = MODE.BROWSE;
         return Status.OK;
     }
@@ -151,6 +226,8 @@ public class ControllerImp implements Controller {
     //--------------------------
     @Override
     public void setLocation(double easting, double northing) {
+        logger.entering("tourguide.ControllerImp", "setLocation", new Object[]{easting, northing});
+        logger.info("LOCATION CHANGED: (e:"+currentEast+", n:"+currentNorth+") -> (e:"+easting+", n:"+northing+")");
         currentEast = easting;
         currentNorth = northing;
 
@@ -161,13 +238,20 @@ public class ControllerImp implements Controller {
                     currentTour.waypoints.get(currentStage).north - currentNorth
             );
             if (next.distance() <= waypointRadius) {
+                logger.info("REACHED NEXT WAYPOINT. " +
+                        "Location: (e:"+currentEast+", n:"+currentNorth+"), " +
+                        "Waypoint: (e:"+currentTour.waypoints.get(currentStage).east+", n:"+currentTour.waypoints.get(currentStage).north+"), " +
+                        "Distance: " + next.distance()
+                );
                 currentStage++;
+                logger.info("CURRENT STAGE: " + currentStage);
             }
         }
     }
 
     @Override
     public List<Chunk> getOutput() {
+        //logger.entering("tourguide.ControllerImp", "getOutput");
         List<Chunk> output = new ArrayList<>();
         switch (currentMode) {
             case CREATE: {

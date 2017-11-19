@@ -233,8 +233,8 @@ public class ControllerTest {
      * Tests if controller.showToursOverview works correctly when there is no tours in the system.
      */
     @Test
-    public void getOutputBrowseInit() {
-        //logger.info(makeBanner("getOutputBrowseInit"));
+    public void browseTourInit() {
+        logger.info(makeBanner("browseTourInit"));
 
         Status status = controller.showToursOverview();
         checkStatus(status);
@@ -247,7 +247,9 @@ public class ControllerTest {
      * Tests if controller.showToursOverview works correctly when there is 1 tour in the system.
      */
     @Test
-    public void getOutputBrowseOneTour() {
+    public void browseTourSimple() {
+        logger.info(makeBanner("browseTourSimple"));
+
         controller.startNewTour("01","tour1", Annotation.DEFAULT);
         controller.addLeg(Annotation.DEFAULT);
         controller.addWaypoint(Annotation.DEFAULT);
@@ -267,6 +269,8 @@ public class ControllerTest {
 
     @Test
     public void browseTourFail() {
+        logger.info(makeBanner("browseTourFail"));
+
         controller.startNewTour("01", "tour1", Annotation.DEFAULT);
         checkStatusNotOK(controller.showToursOverview());
     }
@@ -276,6 +280,8 @@ public class ControllerTest {
      */
     @Test
     public void createSimpleTour() {
+        logger.info(makeBanner("createSimpleTour"));
+
         checkStatus(controller.startNewTour("01","tour1",Annotation.DEFAULT));
         checkOutput(1,0,
                 new Chunk.CreateHeader("tour1",0,0)
@@ -342,6 +348,8 @@ public class ControllerTest {
 
     @Test
     public void browseTourDetails() {
+        logger.info(makeBanner("browseTourDetails"));
+
         controller.startNewTour("01","tour1", new Annotation("testing"));
         controller.addWaypoint(Annotation.DEFAULT);
         controller.endNewTour();
@@ -356,6 +364,8 @@ public class ControllerTest {
 
     @Test
     public void browseTourDetailsFail() {
+        logger.info(makeBanner("browseTourDetailsFail"));
+
         checkStatusNotOK(controller.showTourDetails("01"));
         checkStatusNotOK(controller.showTourDetails(null));
         controller.startNewTour("01", "tour1", Annotation.DEFAULT);
@@ -367,6 +377,8 @@ public class ControllerTest {
 
     @Test
     public void createTourFail() {
+        logger.info(makeBanner("createTourFail"));
+
         controller.startNewTour("01", "tour1", Annotation.DEFAULT);
         checkStatusNotOK(controller.endNewTour());
         controller.setLocation(0,0);
@@ -405,6 +417,8 @@ public class ControllerTest {
 
     @Test
     public void followTour() {
+        logger.info(makeBanner("followTour"));
+
         controller.startNewTour("01", "tour1", new Annotation("tour_annotation"));
         for (int i=0; i < 50; i++) {
             controller.setLocation(0,i * WAYPOINT_SEPARATION);
@@ -465,6 +479,8 @@ public class ControllerTest {
 
     @Test
     public void followTourFail() {
+        logger.info(makeBanner("followTourFail"));
+
         controller.startNewTour("01", "title1", Annotation.DEFAULT);
         controller.addWaypoint(Annotation.DEFAULT);
         checkStatusNotOK(controller.followTour("01"));
