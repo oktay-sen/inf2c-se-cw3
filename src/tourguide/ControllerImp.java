@@ -3,10 +3,7 @@
  */
 package tourguide;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 import java.util.logging.Logger;
 
 /**
@@ -15,6 +12,8 @@ import java.util.logging.Logger;
 public class ControllerImp implements Controller {
     private static Logger logger = Logger.getLogger("tourguide");
     private static final String LS = System.lineSeparator();
+
+
     private double currentEast;
     private double currentNorth;
 
@@ -22,7 +21,7 @@ public class ControllerImp implements Controller {
 
     private MODE currentMode;
 
-    private HashMap<String, Tour> allTours = new HashMap<>();
+    private Map<String, Tour> allTours = new HashMap<>();
 
     private Tour currentTour;
     private int currentStage;
